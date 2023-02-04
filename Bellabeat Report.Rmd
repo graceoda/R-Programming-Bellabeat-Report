@@ -1,0 +1,375 @@
+---
+title: "Bellabeat R Programming"
+author: "Grace Oda"
+date: "2023-02-03"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+## STEP 1: ASK
+
+### 1.0 Background
+Bellabeat is a high-tech manufacturer of health-focused products for women. The Leaf product is Bellabeat’s classic wellness tracker can be worn as a bracelet, necklace, or clip. The Leaf tracker connects to the Bellabeat app to track activity, sleep, and stress.
+
+The co-founder and Chief Creative Officer, Urška Sršen is confident that an analysis of non-Bellabeat consumer data (ie. FitBit fitness tracker usage data) would reveal more opportunities for growth.
+
+### 1.2 Business Task
+Define trends in FitBit Fitness Tracker Data usage and determine how these trends apply to Bellabeat customers and influence the marketing strategy of the Leaf device. 
+
+### 1.3 Business Objectives
+What are some trends in smart device usage? 
+
+How could these trends apply to Bellabeat customers? 
+
+How could these trends help influence Bellabeat marketing strategy? 
+
+### 1.4 Deliverables
+1. A clear summary of the business task 
+2. A description of all data sources used 
+3. Documentation of any cleaning or manipulation of data 
+4. A summary of your analysis 
+5. Supporting visualizations and key findings 
+6. Your top high-level content recommendations based on your analysis
+
+### 1.5 Key Stakeholders
+Urška Sršen: Bellabeat’s cofounder and Chief Creative Officer
+
+Sando Mur: Mathematician, Bellabeat’s cofounder and key member of the Bellabeat executive team
+
+Bellabeat marketing analytics team: A team of data analysts guiding Bellabeat's marketing strategy
+
+
+
+## STEP 2: PREPARE
+
+### 2.1 Information on Data Source
+This dataset is publicly available on [Kaggle: FitBit Fitness Tracker Data](https://www.kaggle.com/datasets/arashnic/fitbit) stored in 18 separate csv files. The data was gathered from respondents to a Amazon Mechanical Turk survey between March 12, 2018 and May 12, 2016. Personal tracker data on sleep, heart-rate, and physical activity was collected from 30 consenting eligible Fitbit users.
+
+### 2.2 Limitations of Data Set
+Data was collected in 2016, hence data may not be relevant to modern trends. 
+
+Small sample size of only 30 participants. Data does not include demographics about the sample such as sex, age, or geographical location. This may not be a good representation of the population of women globally who would use a similar product. 
+
+Survey style of data collection may be subject to response bias. Integrity and accuracy of data is not clear. 
+
+### 2.3 ROCCC
+A good data source is ROCCC: Reliable, Original, Comprehensive, Current, and Cited.
+
+Reliable - LOW - Not reliable as it only has 30 respondents with no demographic information. 
+
+Original - LOW - Third party provider (Amazon Mechanical Turk).
+
+Comprehensive - MED - Parameters match most of Bellabeat's products' parameters, yet some data sets only show a small number of participants.
+
+Current - LOW - Data is from 2016. 
+
+Cited - LOW - Little information on data credibility from a third party provider. 
+
+### 2.4 Data Selection
+The following files are selected for analysis:
+ * dailyActivity_merged.csv
+ * weightLogInfo_merged.csv
+ 
+## STEP 3: PROCESS 
+
+R programming will be used to clean and analyse the data. 
+
+### 3.1 Prepare the Environment
+Download files from Kaggle and upload to RStudio Cloud. 
+
+Load relevant packages: 
+```{r load packages, message=FALSE, warning=FALSE}
+library(tidyverse)
+library(readr)
+library(dplyr)
+library(lubridate)
+library(ggplot2)
+```
+
+### 3.2 Import the Dataset
+Reading the selected files into the proper RStudio Cloud Project: 
+```{r message=FALSE, warning=FALSE}
+daily_activity <- read.csv("/cloud/project/dailyActivity_merged.csv")
+weight_log <- read.csv("/cloud/project/weightLogInfo_merged.csv")
+```
+
+### 3.3 Data Cleaning
+
+```{r preview data, message=FALSE, warning=FALSE}
+## Discover amount of rows and columns and type of data 
+head(daily_activity)
+colnames(daily_activity)
+str(daily_activity)
+glimpse(daily_activity)
+
+glimpse(weight_log)
+
+
+## Check for NA values 
+sum(is.na(daily_activity))
+
+sum(is.na(weight_log))
+sum(is.na(weight_log$Fat))
+## Noted that all NA for weight_log is in Fat column 
+
+
+## Preview IDs for each data set
+n_distinct(daily_activity$Id)
+
+## Check why there are over 30 participants, noted that none appear to be typos 
+unique(daily_activity$Id)
+
+n_distinct(weight_log$Id)
+
+## There are less participants who provided weight 
+
+## Check for duplicates and remove duplicate rows 
+sum(duplicated(daily_activity))
+sum(duplicated(weight_log))
+
+```
+
+From the above observation, we noted the following: 
+
+1. The daily_activity data set has the most data, with 940 rows and 18 columns. The weight_log has 67 rows and 8 columns.
+
+2. Dates are listed as character type variables not date type for all data sets. 
+
+3. The weight_log data set is the only one containing NA values, all of which reside in the Fat column. 
+
+4. There are 33 unique id numbers listed in the daily_activity data set, although the data source background claims only 30 participants took part in the survey. Some of these could be entered incorrectly, or a participant could have multiple accounts with multiple id numbers. 
+
+5. Not as many participants recorded data for the and weight_log data set, with only 8 unique id numbers listed in weight_log.
+
+### 3.4 Data Manipulation
+
+```{r data manipulation, message=FALSE, warning=FALSE}
+## Add relevant columns to daily_activity and drop old columns 
+
+daily_activity_update <- daily_activity %>% 
+  mutate(activity_date = mdy(daily_activity$ActivityDate)) %>% 
+  mutate(weekday = wday(activity_date)) %>% 
+  mutate(total_active_minutes = VeryActiveMinutes + FairlyActiveMinutes + LightlyActiveMinutes) %>% 
+  mutate(total_active_hours = round(total_active_minutes/60, 2)) %>% 
+  mutate(day_of_week = weekdays(activity_date)) %>% 
+  select(-2)
+
+
+## Rename Columns in daily_activity to be uniform 
+daily_activity_renamed <- rename(daily_activity_update, id = Id, 
+total_steps = TotalSteps, 
+total_distance = TotalDistance, 
+tracker_distance = TrackerDistance, 
+active_distance_logged = LoggedActivitiesDistance, 
+active_distance_very = VeryActiveDistance, 
+active_distance_moderate = ModeratelyActiveDistance, 
+active_distance_light = LightActiveDistance, 
+active_distance_sedentary = SedentaryActiveDistance, 
+active_minutes_very = VeryActiveMinutes, 
+active_minutes_fairly = FairlyActiveMinutes, 
+active_minutes_lightly = LightlyActiveMinutes,
+minutes_sedentary = SedentaryMinutes,
+calories= Calories) 
+colnames(daily_activity_renamed)
+head(daily_activity_renamed)
+
+daily_activity_final <- daily_activity_renamed %>% arrange(id)
+glimpse(daily_activity_final)
+
+## Add relevant columns to weight_log in correct formats 
+
+weight_log_update <- weight_log %>% 
+  mutate(date1 = mdy_hms(weight_log$Date)) %>% 
+  mutate(date2 = format(date1, "%m/%d/%y")) %>% 
+  mutate(date = mdy(date2)) %>% 
+  mutate(manual_report = as.logical(weight_log$IsManualReport))
+
+## Rename and drop old columns in weight_log 
+
+weight_log_final <- weight_log_update %>% 
+  rename(id = Id,
+         weight_kg = WeightKg, 
+         weight_lbs = WeightPounds, 
+         fat = Fat, 
+         bmi = BMI, 
+         log_id = LogId) %>% 
+  select(-2,-7,-9, -10) %>%
+  arrange(id)
+
+glimpse(weight_log_final)
+
+```
+
+The following data manipulations were performed: 
+
+**daily_activity:** 
+ 
+ 1. Convert *ActivityDate* to date data type and store as a new column *activity_date*
+ 
+ 2. Create a new column *weekday* to show the day of the week for each recorded date 
+ 
+ 3. Create a new column *total_active_minutes* as a calculation of the sum of *VeryActiveMinutes, FairlyActiveMinutes,* and *LightlyActiveMinutes*
+
+ 4. Create a new column *total_active_hours* by dividing *total_active_minutes* by 60 
+
+ 5. Drop the *ActivityDate* column
+
+ 6. Rename columns to be similar format to ease readability 
+ 
+ 7. Store final data set as *daily_activity_final*
+ 
+**weight_log:**
+
+1. Convert *Date* column to date data type and store as *date*
+
+2. Convert *IsManualReport* column to logical data type and store as *manual_report*
+
+3. Rename columns to be similar format and drop irrelevant columns 
+
+4. Store final data set as *weight_log_final*
+
+
+## STEP 4: ANALYZE
+
+### 4.1 Perform calculations
+
+Pulling the statistics of data sets for analysis:
+
+```{r analysis, message=FALSE, warning=FALSE}
+
+daily_activity_final %>% summary()
+daily_activity_final %>% summarize_all(sd)
+
+weight_log_final %>% summary()
+weight_log_final %>% summarize_all(sd)
+
+```
+
+The summary() function provides min, 1st quartile, median, mean, 3rd quartile, and max data for each numerical row. 
+
+### 4.2 Interpret Findings
+Key findings: 
+
+1. On average, users logged 7,638 total steps, with a low of 0 and a high of 36,019, which is a very large range.
+2. The average BMI of the 8 users who provided data was 25.19, which is considered overweight according to the [CDC BMI chart](https://www.cdc.gov/nchs/data/nhanes/databriefs/adultweight.pdf), yet still under the average American adult BMI of 26.6.
+
+## STEP 5: SHARE
+
+### 5.1 Data Visualizations and Findings 
+
+#### Bar Graph: Fitbit App Data Entry per Weekday 
+
+```{r Bar Graph Day of Week, message=FALSE, warning=FALSE}
+## Bar Graph of Frequency of Logging Data 
+
+## Reorder days of week in daily_activity_final 
+colnames(daily_activity_final)
+daily_activity_final$day_of_week <- factor(daily_activity_final$day_of_week, levels= c("Sunday", "Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday"))
+daily_activity_final <- daily_activity_final[order(daily_activity_final$day_of_week),]
+
+ggplot(daily_activity_final) + geom_bar(aes(x = daily_activity_final$day_of_week, fill = day_of_week)) + labs(title="Data Entrys per Day of Week", x= "Day of Week", y = "Frequency", fill="Day of Week")
+
+table(daily_activity_final$day_of_week)
+```
+
+**Findings:**
+In this bar graph, we are able to see how often users logged data in the app for each day of the week. 
+
+The middle of the week has the highest usage. Tuesday is the day of the week with the most data entries in this data set, with 152 entries. Wednesday had 150 data entries, and Thursday had 147 entries. The least popular day was Monday with only 120 entries. Entries steadily decline from Friday through Monday.  
+
+
+#### Scatter Plot comparing Total Active Minutes vs. Daily Calorie Expenditure
+
+```{r Total Active Mins vs. Cals, message=FALSE, warning=FALSE}
+ggplot(daily_activity_final, mapping = aes(x = total_active_minutes, y= calories)) + geom_point(aes(color = "purple")) + geom_smooth(method=lm, color="black", se=FALSE) + labs(title = "Fitbit Activity Log: Total Active Minutes vs. Calorie Expenditure", subtitle = "Correlation Co-efficient r = 0.47", x = "Total Active Minutes", y = "Calorie Expenditure") + theme(legend.position = "none")
+cor(daily_activity_final$total_active_minutes, daily_activity_final$calories) 
+```
+
+**Findings:** 
+According to our correlation coefficient (r=0.47), there is a strong positive relationship between total active minutes logged and daily calorie expenditure. As total active minutes logged increases, daily calorie expenditure increases. 
+
+
+#### Pie Chart comparing Types of Activity Logged in Minutes 
+
+```{r Pie Chart, message=FALSE, warning=FALSE}
+## New data set with relevant calorie and activity minutes data 
+total_minutes_logged <- daily_activity_final %>% select(1,10,11,12,13,14) %>% mutate(total_mins = daily_activity_final$minutes_sedentary + daily_activity_final$total_active_minutes)
+head(total_minutes_logged) 
+
+avg_total_minutes_logged <- total_minutes_logged %>% summarize_all(mean)
+head(avg_total_minutes_logged)
+
+avg_mins <- c(21.2, 13.6, 192.8)
+lbls <- c("Very Active Minutes", "Fairly Active Minutes", "Lightly Active Minutes")
+pct <- round(avg_mins/sum(avg_mins)*100)
+lbls <- paste(lbls, pct) # add percents to labels
+lbls <- paste(lbls,"%",sep="") # ad % to labels
+pie(avg_mins, labels = lbls, col=rainbow(length(lbls)), main="Percentage of Total Logged Activity")
+```
+
+**Findings:**
+The most active time logged was lightly active minutes, making up an average of 85% of total active minutes. 6% of total active minutes were fairly active minutes, while very active minutes make up only 9% of total active minutes. 
+
+
+#### Scatter Plot Comparing Average BMI and Total Active Minutes
+
+```{r BMI vs Total Active Mins Scatter Plot, message=FALSE, warning=FALSE}
+##  Calculate and store average bmi and total active minutes data 
+avg_bmi_per_id <- weight_log_final %>% 
+  group_by(id) %>% 
+  summarize(mean(bmi))
+avg_active_minutes_per_id <- daily_activity_final %>% 
+  group_by(id) %>% 
+  summarize(mean(total_active_minutes)) 
+
+## LEFT JOIN to create a table with relevant bmi, id, and active minutes information 
+bmi_vs_active_mins <- merge(avg_bmi_per_id, avg_active_minutes_per_id, by = "id", all.x = TRUE)
+
+##Plot findings 
+ggplot(bmi_vs_active_mins, mapping = aes(x = `mean(total_active_minutes)`, y = `mean(bmi)`)) + geom_point(aes(color = id)) + geom_smooth(method=lm, color="red", se=FALSE) + labs(title = "Fitbit Activity Log: Average Total Active Minutes vs. Average BMI", subtitle = "Correlation Co-efficient r = -0.96", x = "Average Total Active Minutes", y = "Average BMI") + scale_shape_discrete(name  ="User Id", breaks=id, labels=id)
+
+cor(bmi_vs_active_mins$`mean(bmi)`, bmi_vs_active_mins$`mean(total_active_minutes)`)
+
+```
+**Findings:**
+There is a very strong negative relationship between average total active minutes and average BMI, according to the correlation coefficient of r=-0.96. This means that as average total active minutes increase, average BMI decreases. 
+
+
+## STEP 6: ACT
+Here, we will revist our business questions, recap trends in our findings, and report best business recommedations. 
+
+**What are some trends in smart device usage?**
+
+1. The most popular days of the week to track information were Tuesday - Thursday, with a stready decline in data entry from Friday through Monday. 
+
+2. There is a strong positive correlation between total active minutes and calorie expenditure. 
+
+3. The most recorded active minutes were lightly active minutes, making up 85% of all active time. 
+
+4. There is a very strong negative correlation between total active minutes and average BMI.  
+
+
+**How could these trends apply to Bellabeat customers?**
+
+1. By interpreting trends regarding weekday data entry, the Bellabeat team can plan how to increase device usage on less active data entry days. This could apply the the Bellabeat Leaf device. 
+
+2. Bellabeat customers who are seeking to increase daily calorie expenditure would be inspired by this data to increase active minutes throughout the day. 
+
+3. If Bellabeat users are similar to the sample we examined using the Fitbit, we can assume they would also have a high percentage of lightly active minutes in comparison to total active minutes. 
+
+4. As Bellabeat users increase their total active minutes, the correlation we examined suggests that average BMI for these users would decrease. 
+
+
+**How could these trends help influence Bellabeat marketing strategy?**
+
+1. To increase device usage of the Bellabeat Leaf device, a notification timer can be enabled to notify users to log on less active days. This would help increase usage during the weekend, when users don't track data as much on average compared to midweek days. 
+
+2. In a future advertising campaign, the Bellabeat marketing team could highlight the importance of activity in increasing caloric burn. They can showcase how increase in active minutes throughout the day leads to increased calorie expenditure. 
+
+3. Knowing that lightly active minutes are a very popular source of activity, Bellabeat can cultivate a library of "lightly active" workouts. Activities such as walking, yoga, stretching, or a light jog, could all be considered forms of light activity. According to our findings, these workouts would be more popular among users than fairly active or very active workouts. 
+
+4. BMI is a strong indicator of overall health. Bellabeat can use these findings to encourage users to increase total active minutes to help lower their BMI within a healthy range. 
+
